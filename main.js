@@ -1,9 +1,11 @@
-const favoriteBtn = document.getElementById('favorite-btn');
 const BASE_URL = 'https://media2.edu.metropolia.fi/restaurant/api/v1';
 
 let currentRestaurantId = null;
 let currentRestaurantName = '';
 let currentView = 'daily';
+let map = null;
+let marker = null;
+
 
 const restaurantList = document.getElementById('restaurant-list');
 const menuDisplay = document.getElementById('menu-display');
@@ -17,6 +19,11 @@ const authSection = document.getElementById('auth-section');
 const userInfo = document.getElementById('user-info');
 const welcomeText = document.getElementById('welcome-text');
 const logoutBtn = document.getElementById('logout-btn');
+const registerBtn = document.getElementById('register-btn');
+const favoriteBtn = document.getElementById('favorite-btn');
+const avatarInput = document.getElementById('avatar-input');
+const uploadAvatarBtn = document.getElementById('upload-avatar-btn');
+const avatarImg = document.getElementById('avatar-img');
 
 function checkAuth() {
   const token = localStorage.getItem('userToken');
@@ -27,10 +34,18 @@ function checkAuth() {
     authSection.classList.add('hidden');
     userInfo.classList.remove('hidden');
     welcomeText.textContent = `Welcome, ${userData.username}`;
+
+    if (userData.avatar) {
+      avatarImg.src = `https://media2.edu.metropolia.fi/restaurant/uploads/${userData.avatar}`;
+      avatarImg.style.display = 'block';
+    } else {
+      avatarImg.style.display = 'none';
+    }
   } else {
     authSection.classList.remove('hidden');
     userInfo.classList.add('hidden');
     welcomeText.textContent = '';
+    avatarImg.style.display = 'none';
   }
 }
 
@@ -66,14 +81,6 @@ loginForm.addEventListener('submit', async (e) => {
   }
 });
 
-logoutBtn.addEventListener('click', () => {
-  localStorage.removeItem('userToken');
-  localStorage.removeItem('userData');
-  checkAuth();
-});
-
-const registerBtn = document.getElementById('register-btn');
-
 registerBtn.addEventListener('click', async () => {
   const username = document.getElementById('username').value;
   const password = document.getElementById('password').value;
@@ -104,6 +111,100 @@ registerBtn.addEventListener('click', async () => {
   }
 });
 
+logoutBtn.addEventListener('click', () => {
+  localStorage.removeItem('userToken');
+  localStorage.removeItem('userData');
+  checkAuth();
+});
+
+uploadAvatarBtn.addEventListener('click', async () => {
+  const file = avatarInput.files[0];
+  const token = localStorage.getItem('userToken');
+
+  if (!file) {
+    alert('Please select an image file first.');
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('avatar', file);
+
+  try {
+    const response = await fetch(`${BASE_URL}/users/avatar`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      body: formData
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) throw new Error(data.message || 'Avatar upload failed');
+
+    const avatarFilename = data.data.avatar;
+
+    const userData = JSON.parse(localStorage.getItem('userData'));
+    userData.avatar = avatarFilename;
+    localStorage.setItem('userData', JSON.stringify(userData));
+
+    avatarImg.src = `https://media2.edu.metropolia.fi/restaurant/uploads/${avatarFilename}`;
+    avatarImg.style.display = 'block';
+
+    alert('Avatar uploaded successfully!');
+  } catch (error) {
+    alert(error.message);
+  }
+});
+
+favoriteBtn.addEventListener('click', async () => {
+  const token = localStorage.getItem('userToken');
+
+  if (!token) {
+    alert('You must be logged in to favorite a restaurant!');
+    return;
+  }
+
+  try {
+    const response = await fetch(`${BASE_URL}/users`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ favouriteRestaurant: currentRestaurantId })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) throw new Error(data.message || 'Failed to update favorite');
+
+    const userData = JSON.parse(localStorage.getItem('userData'));
+    userData.favouriteRestaurant = currentRestaurantId;
+    localStorage.setItem('userData', JSON.stringify(userData));
+
+    alert(`Successfully set ${currentRestaurantName} as your favorite restaurant!`);
+  } catch (error) {
+    alert(error.message);
+  }
+});
+
+function updateMap(lat, lon) {
+  const mapDiv = document.getElementById('map');
+  mapDiv.classList.remove('hidden');
+
+  if (!map) {
+    map = L.map('map').setView([lat, lon], 15);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+  }
+
+  if (marker) map.removeLayer(marker);
+  marker = L.marker([lat, lon]).addTo(map);
+
+  map.flyTo([lat, lon], 15);
+  setTimeout(() => map.invalidateSize(), 100);
+}
+
 async function loadRestaurants() {
   try {
     const response = await fetch(`${BASE_URL}/restaurants`);
@@ -121,8 +222,11 @@ async function loadRestaurants() {
         currentRestaurantId = restaurant._id;
         currentRestaurantName = restaurant.name;
         restaurantNameTitle.textContent = currentRestaurantName;
-        favoriteBtn.style.display = 'block';
         menuControls.classList.remove('hidden');
+        favoriteBtn.style.display = 'block';
+        const lon = restaurant.location.coordinates[0];
+        const lat = restaurant.location.coordinates[1];
+        updateMap(lat, lon);
 
         loadMenu();
       });
@@ -210,37 +314,6 @@ btnWeekly.addEventListener('click', () => {
   btnWeekly.classList.add('active');
   btnDaily.classList.remove('active');
   loadMenu();
-});
-
-favoriteBtn.addEventListener('click', async () => {
-  const token = localStorage.getItem('userToken');
-
-  if (!token) {
-    alert('You must be logged in to favorite a restaurant!');
-    return;
-  }
-
-  try {
-    const response = await fetch(`${BASE_URL}/users`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ favouriteRestaurant: currentRestaurantId })
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) throw new Error(data.message || 'Failed to update favorite');
-    const userData = JSON.parse(localStorage.getItem('userData'));
-    userData.favouriteRestaurant = currentRestaurantId;
-    localStorage.setItem('userData', JSON.stringify(userData));
-
-    alert(`Successfully set ${currentRestaurantName} as your favorite restaurant!`);
-  } catch (error) {
-    alert(error.message);
-  }
 });
 
 checkAuth();

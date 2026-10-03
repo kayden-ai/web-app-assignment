@@ -5,6 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Student Restaurants</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="style.css">
 </head>
 
@@ -23,7 +25,13 @@
             <p id="auth-message"></p>
         </div>
         <div id="user-info" class="hidden">
+            <img id="avatar-img" src="" alt="Profile"
+                style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; display: none;">
             <span id="welcome-text"></span>
+            <input type="file" id="avatar-input" accept="image/*" style="width: 150px; font-size: 0.8rem;">
+            <button id="upload-avatar-btn"
+                style="background-color: #9b59b6; color: white; border: none; padding: 0.5rem; border-radius: 4px; cursor: pointer;">Upload
+                Avatar</button>
             <button id="logout-btn">Logout</button>
         </div>
     </header>
@@ -33,21 +41,24 @@
             <ul id="restaurant-list"></ul>
         </aside>
         <main class="content">
+            <div id="map" class="hidden"
+                style="height: 300px; width: 100%; border-radius: 8px; margin-bottom: 20px; z-index: 1;"></div>
             <div id="menu-controls" class="hidden">
-                <h2 id="restaurant-name-title"></h2>
-                <div class="buttons">
-                    <button id="btn-daily" class="active">Daily Menu</button>
-                    <button id="btn-weekly">Weekly Menu</button>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <h2 id="restaurant-name-title"></h2>
                     <button id="favorite-btn"
                         style="background-color: #f1c40f; color: #333; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-weight: bold; display: none;">★
                         Favorite</button>
                 </div>
+                <div class="buttons">
+                    <button id="btn-daily" class="active">Daily Menu</button>
+                    <button id="btn-weekly">Weekly Menu</button>
+                </div>
             </div>
-    </div>
-    <div id="menu-display">
-        <p>Select a restaurant from the sidebar to view its menu.</p>
-    </div>
-    </main>
+            <div id="menu-display">
+                <p>Select a restaurant from the sidebar to view its menu.</p>
+            </div>
+        </main>
     </div>
     <script src="main.js"></script>
 </body>
